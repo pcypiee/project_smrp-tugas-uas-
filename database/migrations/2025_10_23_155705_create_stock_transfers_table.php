@@ -11,15 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('item_materials', function (Blueprint $table) {
+        Schema::create('stock_transfers', function (Blueprint $table) {
             $table->id();
-            $table->string('nama_item');
-            $table->string('unit_satuan');
-            $table->string('rop');
-            $table->string('created_by')->nullable();
-            $table->string('updated_by')->nullable();
             $table->timestamps();
-            $table->softDeletes();});
+        });
     }
 
     /**
@@ -27,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('item_materials');
+        Schema::dropIfExists('stock_transfers');
     }
 };

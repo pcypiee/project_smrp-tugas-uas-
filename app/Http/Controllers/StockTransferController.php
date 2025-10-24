@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\StockTransfer;
+use App\Models\ItemMaterial;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class StockTransferController extends Controller
 {
@@ -12,7 +14,11 @@ class StockTransferController extends Controller
      */
     public function index()
     {
-        //
+        $stockTransfers = StockTransfer::with('item')
+            ->latest()
+            ->paginate(10);
+        
+        return view('stock_transfers.index', compact('stockTransfers'));
     }
 
     /**
@@ -20,7 +26,9 @@ class StockTransferController extends Controller
      */
     public function create()
     {
-        //
+        $items = ItemMaterial::all();
+        
+        return view('stock_transfers.create', compact('items'));
     }
 
     /**
@@ -28,7 +36,31 @@ class StockTransferController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'item_id' => 'required|exists:item_materials,id',
+            'asal_lokasi' => 'required|string|max:255',
+            'tujuan_lokasi' => 'required|string|max:255|different:asal_lokasi',
+            'jumlah' => 'required|numeric|min:1',
+            'status' => 'nullable|in:In-Transit,Completed,Cancelled',
+        ], [
+            'item_id.required' => 'Item wajib dipilih',
+            'item_id.exists' => 'Item tidak ditemukan',
+            'asal_lokasi.required' => 'Lokasi asal wajib diisi',
+            'tujuan_lokasi.required' => 'Lokasi tujuan wajib diisi',
+            'tujuan_lokasi.different' => 'Lokasi tujuan harus berbeda dengan lokasi asal',
+            'jumlah.required' => 'Jumlah wajib diisi',
+            'jumlah.numeric' => 'Jumlah harus berupa angka',
+            'jumlah.min' => 'Jumlah minimal 1',
+            'status.in' => 'Status tidak valid',
+        ]);
+
+        $validated['status'] = $validated['status'] ?? 'In-Transit';
+        $validated['created_by'] = Auth::user()->name ?? 'System';
+
+        StockTransfer::create($validated);
+
+        return redirect()->route('stock-transfers.index')
+            ->with('success', 'Stock transfer berhasil ditambahkan');
     }
 
     /**
@@ -36,7 +68,8 @@ class StockTransferController extends Controller
      */
     public function show(StockTransfer $stockTransfer)
     {
-        //
+        $stockTransfer->load('item');
+        return view('stock_transfers.show', compact('stockTransfer'));
     }
 
     /**
@@ -44,7 +77,9 @@ class StockTransferController extends Controller
      */
     public function edit(StockTransfer $stockTransfer)
     {
-        //
+        $items = ItemMaterial::all();
+        
+        return view('stock_transfers.edit', compact('stockTransfer', 'items'));
     }
 
     /**
@@ -52,7 +87,31 @@ class StockTransferController extends Controller
      */
     public function update(Request $request, StockTransfer $stockTransfer)
     {
-        //
+        $validated = $request->validate([
+            'item_id' => 'required|exists:item_materials,id',
+            'asal_lokasi' => 'required|string|max:255',
+            'tujuan_lokasi' => 'required|string|max:255|different:asal_lokasi',
+            'jumlah' => 'required|numeric|min:1',
+            'status' => 'required|in:In-Transit,Completed,Cancelled',
+        ], [
+            'item_id.required' => 'Item wajib dipilih',
+            'item_id.exists' => 'Item tidak ditemukan',
+            'asal_lokasi.required' => 'Lokasi asal wajib diisi',
+            'tujuan_lokasi.required' => 'Lokasi tujuan wajib diisi',
+            'tujuan_lokasi.different' => 'Lokasi tujuan harus berbeda dengan lokasi asal',
+            'jumlah.required' => 'Jumlah wajib diisi',
+            'jumlah.numeric' => 'Jumlah harus berupa angka',
+            'jumlah.min' => 'Jumlah minimal 1',
+            'status.required' => 'Status wajib dipilih',
+            'status.in' => 'Status tidak valid',
+        ]);
+
+        $validated['updated_by'] = Auth::user()->name ?? 'System';
+
+        $stockTransfer->update($validated);
+
+        return redirect()->route('stock-transfers.index')
+            ->with('success', 'Stock transfer berhasil diupdate');
     }
 
     /**
@@ -60,6 +119,25 @@ class StockTransferController extends Controller
      */
     public function destroy(StockTransfer $stockTransfer)
     {
-        //
+        $stockTransfer->delete();
+
+        return redirect()->route('stock-transfers.index')
+            ->with('success', 'Stock transfer berhasil dihapus');
+    }
+
+    /**
+     * Update status transfer
+     */
+    public function updateStatus(Request $request, StockTransfer $stockTransfer)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:In-Transit,Completed,Cancelled',
+        ]);
+
+        $validated['updated_by'] = Auth::user()->name ?? 'System';
+        $stockTransfer->update($validated);
+
+        return redirect()->back()
+            ->with('success', 'Status berhasil diupdate');
     }
 }
